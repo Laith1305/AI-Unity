@@ -5,11 +5,18 @@ public class AutonomousAgent : AIAgent
     [SerializeField] Movement movement;
     [SerializeField] Perception seekPerception;
     [SerializeField] Perception fleePerception;
+    [SerializeField] Perception flockPerception;
 
     [Header("Wander")]
     [SerializeField] float wanderRadius = 1f;
     [SerializeField] float wanderDistance = 1f;
     [SerializeField] float wanderDisplacement = 10f;
+
+    [Header("Flock")]
+    [SerializeField, Range(0, 5)] float cohesionWeight = 1;
+    [SerializeField, Range(0, 5)] float separationWeight = 1;
+    [SerializeField, Range(0, 5)] float alignmentWeight = 1;
+    [SerializeField, Range(0, 5)] float separationRadius = 1;
 
     float wanderAngle = 0.0f;
 
@@ -60,6 +67,8 @@ public class AutonomousAgent : AIAgent
             new Vector3(-150, -150, -150),
             new Vector3(150, 150, 150)
         );
+
+
 
         // Face movement direction
         if (movement.Velocity.sqrMagnitude > 0.01f)
@@ -117,4 +126,30 @@ public class AutonomousAgent : AIAgent
         return force;
     }
 
+    private Vector3 Seperation(GameObject[] neighbors, float radius)
+    {
+        Vector3 seperation = Vector3.zero;
+    
+        foreach (var neighbor in neighbors)
+        {
+            Vector3 direction = transform.position - neighbor.transform.position;
+            float distance = direction.magnitude;
+            if (distance > 0 && distance < separationRadius)
+            {
+                seperation += direction * (1 / distance); // Weight by inverse of distance
+                
+            }
+        }
+
+        Vector3 force = (seperation.sqrMagnitude > 0) ? GetStereingForce(seperation) : Vector3.zero;
+        //if (count > 0)
+        //{
+        //    force /= count; // Average the force
+        //    force = force.normalized * movement.maxSpeed;
+        //    force -= movement.Velocity;
+        //    force = Vector3.ClampMagnitude(force, movement.maxForce);
+        //}
+        return force;
+    }
 }
+

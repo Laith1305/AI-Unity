@@ -4,18 +4,25 @@ public static class Utilities
 {
     public static float Wrap(float v, float min, float max)
     {
+        // ensure min <= max by swapping if needed
+        if (min > max)
+        {
+            float temp = min;
+            min = max;
+            max = temp;
+        }
+
+        // handle case where range is zero
+        if (min == max) return min;
+
+        // calculate offset from min using modulo for wrapping
         float range = max - min;
+        float offset = (v - min) % range;
 
-        if (range == 0)
-            return min;
+        // handle negative offsets (when v < min)
+        if (offset < 0) offset += range;
 
-        while (v < min)
-            v += range;
-
-        while (v > max)
-            v -= range;
-
-        return v;
+        return min + offset;
     }
 
     public static Vector3 Wrap(Vector3 v, Vector3 min, Vector3 max)
