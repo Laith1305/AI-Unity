@@ -1,4 +1,5 @@
 using UnityEngine;
+using static UnityEngine.UIElements.UxmlAttributeDescription;
 
 public class AutonomousAgent : AIAgent
 {
@@ -17,6 +18,10 @@ public class AutonomousAgent : AIAgent
     [SerializeField, Range(0, 5)] float separationWeight = 1;
     [SerializeField, Range(0, 5)] float alignmentWeight = 1;
     [SerializeField, Range(0, 5)] float separationRadius = 1;
+
+    [Header("Obsticles")]
+    [SerializeField] Perception obstaclePerception;
+    [SerializeField, Range(0, 5)] float obstacleSeparationRadius = 1;
 
     float wanderAngle = 0.0f;
 
@@ -54,6 +59,29 @@ public class AutonomousAgent : AIAgent
             }
         }
 
+        // FLOCKS
+        if (flockPerception != null)
+        {
+            var neighbors = flockPerception.GetGameObjects();
+
+            if (neighbors.Length > 0)
+            {
+                movement.ApplyForce(Cohesion(neighbors) * cohesionWeight);
+                movement.ApplyForce(Separation(neighbors, separationRadius) * separationWeight);
+                movement.ApplyForce(Alignment(neighbors) * alignmentWeight);
+            }
+        }
+
+        if (obstaclePerception != null && obstaclePerception.GetGameObjectInDirection(transform.forward) != null)
+        {
+            Vector3 openDirection = Vector3.zero;
+            if (obstaclePerception.GetOpenDirection(ref openDirection))
+            {
+                hasTarget = true;
+                movement.ApplyForce(GetStereingForce(openDirection) * separationWeight);
+            }
+        }
+
         // WANDER (only if no seek or flee)
         if (!hasTarget)
         {
@@ -64,11 +92,9 @@ public class AutonomousAgent : AIAgent
         // World wrap
         transform.position = Utilities.Wrap(
             transform.position,
-            new Vector3(-150, -150, -150),
-            new Vector3(150, 150, 150)
+            new Vector3(-20, 0, -20),
+            new Vector3(20, 0, 20)
         );
-
-
 
         // Face movement direction
         if (movement.Velocity.sqrMagnitude > 0.01f)
@@ -93,6 +119,71 @@ public class AutonomousAgent : AIAgent
         return force;
     }
 
+    private Vector3 Cohesion(GameObject[] neighbors)
+    {
+        Vector3 positions = Vector3.zero;
+        foreach (var neighbor in neighbors)
+        {
+            positions += neighbor.transform.position;
+        }
+
+        Vector3 center = positions / neighbors.Length;
+
+        Vector3 direction = center - transform.position;
+
+        Vector3 force = GetStereingForce(direction);
+
+        return force;
+    }
+
+    private Vector3 Separation(GameObject[] neighbors, float radius)
+    {
+        Vector3 separation = Vector3.zero;
+
+        foreach (var neighbor in neighbors)
+        {
+            Vector3 direction = (transform.position - neighbor.transform.position);
+            float distance = direction.magnitude;
+
+            // check if within separation radius
+            if (distance > 0.0f && distance < radius)
+            {
+                // closer neighbors push harder
+                separation += direction * (1 / distance);
+            }
+        }
+
+        // steer towards the separation direction
+        Vector3 force = (separation.sqrMagnitude > 0) ? GetStereingForce(separation) : Vector3.zero;
+
+
+        return force;
+    }
+
+
+    private Vector3 Alignment(GameObject[] neighbors)
+    {
+        Vector3 velocities = Vector3.zero;
+
+        foreach (var neighbor in neighbors)
+        {
+            // get AutonomousAgent component safely
+            if (neighbor.TryGetComponent<AutonomousAgent>(out AutonomousAgent agent))
+            {
+                velocities += agent.movement.Velocity;
+            }
+        }
+
+        // get the average velocity of the neighbors
+        Vector3 averageVelocity = velocities / neighbors.Length;
+
+        // steer towards the average velocity
+        Vector3 force = GetStereingForce(averageVelocity);
+
+        return force;
+    }
+
+
     private Vector3 Wander()
     {
         // randomly adjust the wander angle within displacement range
@@ -101,7 +192,6 @@ public class AutonomousAgent : AIAgent
         // calculate point on the wander circle
         Quaternion rotation = Quaternion.AngleAxis(wanderAngle, Vector3.up);
         Vector3 pointOnCircle = rotation * (Vector3.forward * wanderRadius);
-
         // project the wander circle in front of the agent
         Vector3 circleCenter = movement.Velocity.normalized * wanderDistance;
 
@@ -126,30 +216,4 @@ public class AutonomousAgent : AIAgent
         return force;
     }
 
-    private Vector3 Seperation(GameObject[] neighbors, float radius)
-    {
-        Vector3 seperation = Vector3.zero;
-    
-        foreach (var neighbor in neighbors)
-        {
-            Vector3 direction = transform.position - neighbor.transform.position;
-            float distance = direction.magnitude;
-            if (distance > 0 && distance < separationRadius)
-            {
-                seperation += direction * (1 / distance); // Weight by inverse of distance
-                
-            }
-        }
-
-        Vector3 force = (seperation.sqrMagnitude > 0) ? GetStereingForce(seperation) : Vector3.zero;
-        //if (count > 0)
-        //{
-        //    force /= count; // Average the force
-        //    force = force.normalized * movement.maxSpeed;
-        //    force -= movement.Velocity;
-        //    force = Vector3.ClampMagnitude(force, movement.maxForce);
-        //}
-        return force;
-    }
 }
-

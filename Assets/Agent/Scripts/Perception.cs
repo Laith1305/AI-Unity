@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public abstract class Perception : MonoBehaviour
@@ -13,6 +14,13 @@ public abstract class Perception : MonoBehaviour
 
     public abstract GameObject[] GetGameObjects();
 
+    internal object GetGameObjectInDirection(Vector3 forward)
+    {
+        throw new NotImplementedException();
+    }
 
-    
+    internal bool GetOpenDirection(ref Vector3 openDirection)
+    {
+        throw new NotImplementedException();
+    }
 }
